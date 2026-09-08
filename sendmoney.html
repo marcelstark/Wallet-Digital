@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enviar dinero | Alke Wallet</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../CSS/styles-wallet.css">
+</head>
+<body>
+  <main class="container py-4 py-md-5">
+    <a href="menu.html" class="btn btn-outline-secondary btn-sm mb-4">← Volver al menú</a>
+    <div id="alert-container" aria-live="polite"></div>
+
+    <section class="row g-4">
+      <div class="col-lg-7">
+        <div class="card wallet-card fade-in">
+          <div class="card-body p-4">
+            <h1 class="h2 page-title">Enviar dinero</h1>
+            <p class="text-secondary">Busca o selecciona un contacto de tu agenda.</p>
+            <p class="mb-3">Saldo disponible: <strong id="currentBalance" class="text-success">$0</strong></p>
+
+            <form id="searchForm" class="position-relative mb-3">
+              <label for="contactSearch" class="form-label">Buscar contacto</label>
+              <input type="text" id="contactSearch" class="form-control" autocomplete="off" placeholder="Busca por nombre o alias">
+              <div id="autocompleteList" class="autocomplete-list d-none"></div>
+            </form>
+
+            <ul id="contactsList" class="list-group mb-3" aria-label="Lista de contactos"></ul>
+
+            <form id="sendForm" class="d-none" novalidate>
+              <div class="alert alert-primary">Contacto seleccionado: <strong id="selectedContactName"></strong></div>
+              <div class="mb-3">
+                <label for="sendAmount" class="form-label">Monto a enviar</label>
+                <input type="number" id="sendAmount" class="form-control" min="1" step="1" placeholder="Ejemplo: 10000" required>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">Enviar dinero</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <aside class="col-lg-5">
+        <div class="card wallet-card fade-in">
+          <div class="card-body p-4">
+            <h2 class="h4 page-title">Agregar nuevo contacto</h2>
+            <button id="showContactForm" class="btn btn-outline-success w-100 mb-3">Agregar nuevo contacto</button>
+
+            <form id="newContactForm" class="d-none" novalidate>
+              <div class="mb-3">
+                <label for="contactName" class="form-label">Nombre y apellido</label>
+                <input type="text" id="contactName" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label for="contactCbu" class="form-label">Número de CBU</label>
+                <input type="text" id="contactCbu" class="form-control" inputmode="numeric" placeholder="22 dígitos" required>
+              </div>
+              <div class="mb-3">
+                <label for="contactAlias" class="form-label">Alias</label>
+                <input type="text" id="contactAlias" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label for="contactBank" class="form-label">Nombre del banco</label>
+                <input type="text" id="contactBank" class="form-control" required>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">Guardar contacto</button>
+                <button type="button" id="cancelContactForm" class="btn btn-outline-secondary">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../JS/wallet.js"></script>
+  <script>
+    $(function () {
+      requireLogin();
+      let selectedContact = null;
+
+      $('#currentBalance').text(formatCurrency(getBalance()));
+
+      function renderContacts(contacts) {
+        const $list = $('#contactsList');
+        $list.empty();
+
+        if (!contacts.length) {
+          $list.append('<li class="list-group-item text-secondary">No se encontraron contactos.</li>');
+          return;
+        }
+
+        contacts.forEach(function (contact) {
+          const item = $(`
+            <li class="list-group-item contact-item" data-id="${contact.id}">
+              <strong>${contact.name}</strong><br>
+              <small>${contact.alias} · ${contact.bank}</small>
+            </li>
+          `);
+          $list.append(item);
+        });
+      }
+
+      function selectContact(contact) {
+        selectedContact = contact;
+        $('#contactsList .contact-item').removeClass('active');
+        $('#contactsList .contact-item[data-id="' + contact.id + '"]').addClass('active');
+        $('#selectedContactName').text(contact.name + ' (' + contact.alias + ')');
+        $('#sendForm').removeClass('d-none').hide().slideDown(200);
+        $('#autocompleteList').addClass('d-none').empty();
+      }
+
+      function findContactById(id) {
+        return getContacts().find(function (contact) {
+          return String(contact.id) === String(id);
+        });
+      }
+
+      renderContacts(getContacts());
+
+      $('#showContactForm').click(function () {
+        $('#newContactForm').removeClass('d-none').hide().slideDown(200);
+      });
+
+      $('#cancelContactForm').click(function () {
+        $('#newContactForm').slideUp(200, function () {
+          $(this).addClass('d-none')[0].reset();
+        });
+      });
+
+      $('#newContactForm').submit(function (event) {
+        event.preventDefault();
+        const name = $('#contactName').val().trim();
+        const cbu = $('#contactCbu').val().trim();
+        const alias = $('#contactAlias').val().trim();
+        const bank = $('#contactBank').val().trim();
+
+        if (!name || !cbu || !alias || !bank) {
+          showAlert('Completa todos los campos del contacto.', 'danger');
+          return;
+        }
+
+        if (!/^\d{22}$/.test(cbu)) {
+          showAlert('El CBU debe contener exactamente 22 dígitos numéricos.', 'danger');
+          return;
+        }
+
+        const alreadyExists = getContacts().some(function (contact) {
+          return contact.cbu === cbu || contact.alias.toLowerCase() === alias.toLowerCase();
+        });
+
+        if (alreadyExists) {
+          showAlert('Ya existe un contacto con ese CBU o alias.', 'danger');
+          return;
+        }
+
+        addContact({ name: name, cbu: cbu, alias: alias, bank: bank });
+        renderContacts(getContacts());
+        showAlert('Contacto agregado correctamente.', 'success');
+        $('#newContactForm').slideUp(200, function () {
+          $(this).addClass('d-none')[0].reset();
+        });
+      });
+
+      $('#contactSearch').on('input', function () {
+        const term = $(this).val().trim().toLowerCase();
+        const contacts = getContacts().filter(function (contact) {
+          return contact.name.toLowerCase().includes(term) || contact.alias.toLowerCase().includes(term);
+        });
+
+        renderContacts(contacts);
+        const $autocomplete = $('#autocompleteList');
+        $autocomplete.empty();
+
+        if (!term || !contacts.length) {
+          $autocomplete.addClass('d-none');
+          return;
+        }
+
+        contacts.slice(0, 5).forEach(function (contact) {
+          $autocomplete.append(`<div class="autocomplete-item" data-id="${contact.id}">${contact.name} — ${contact.alias}</div>`);
+        });
+        $autocomplete.removeClass('d-none');
+      });
+
+      $('#autocompleteList').on('click', '.autocomplete-item', function () {
+        const contact = findContactById($(this).data('id'));
+        if (contact) {
+          $('#contactSearch').val(contact.name);
+          renderContacts(getContacts());
+          selectContact(contact);
+        }
+      });
+
+      $('#contactsList').on('click', '.contact-item', function () {
+        const contact = findContactById($(this).data('id'));
+        if (contact) selectContact(contact);
+      });
+
+      $('#sendForm').submit(function (event) {
+        event.preventDefault();
+        const amount = Number($('#sendAmount').val());
+        const balance = getBalance();
+
+        if (!selectedContact) {
+          showAlert('Selecciona un contacto antes de enviar dinero.', 'danger');
+          return;
+        }
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showAlert('Ingresa un monto válido mayor que cero.', 'danger');
+          return;
+        }
+
+        if (amount > balance) {
+          showAlert('Saldo insuficiente para realizar la transferencia.', 'danger');
+          return;
+        }
+
+        const newBalance = balance - amount;
+        setBalance(newBalance);
+        addTransaction('transfer_sent', 'Transferencia enviada a ' + selectedContact.name + ' (' + selectedContact.alias + ')', -amount);
+        $('#currentBalance').text(formatCurrency(newBalance));
+        showAlert('Envío realizado con éxito a ' + selectedContact.name + '. Redirigiendo al menú...', 'success');
+
+        setTimeout(function () {
+          window.location.href = 'menu.html';
+        }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
