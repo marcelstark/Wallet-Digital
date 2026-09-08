@@ -1,0 +1,38 @@
+# Alke Wallet
+
+Aplicación frontend de billetera digital desarrollada como proyecto integrador
+del Módulo 2: Fundamentos del Desarrollo Frontend.
+
+## Tecnologías
+
+- HTML5
+- CSS3
+- JavaScript
+- jQuery
+- Bootstrap 5
+- LocalStorage
+
+## Funcionalidades
+
+- Inicio de sesión con validación.
+- Consulta de saldo disponible.
+- Depósitos y retiros de fondos.
+- Envío y recepción simulada de dinero.
+- Agenda y búsqueda dinámica de contactos.
+- Historial y filtros de transacciones.
+- Diseño responsive.
+
+## Ejecución
+
+1. Clonar o descargar este repositorio.
+2. Abrir `index.html` con un navegador web.
+3. Iniciar sesión con:
+
+   - Email: `usuario@wallet.com`
+   - Contraseña: `123456`
+
+## Nota
+
+Los datos se guardan temporalmente en `localStorage`. Para reiniciar la aplicación,
+elimina las claves de almacenamiento local desde las herramientas de desarrollo
+del navegador.
