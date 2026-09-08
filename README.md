@@ -89,4 +89,4 @@ style: mejorar interfaz responsive con Bootstrap
 
 ## Autor
 
-Reemplaza esta sección por tu nombre, enlace de GitHub y fecha de entrega.
+Marcel Navarrete Monrroy, enlace de GitHub y 08/09/2026.
